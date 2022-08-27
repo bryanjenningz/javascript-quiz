@@ -99,7 +99,8 @@ view : Model -> Html Msg
 view model =
     H.div
         []
-        [ H.h1 [] [ H.text "JavaScript Quiz" ]
+        [ viewProgress model
+        , H.h1 [] [ H.text "JavaScript Quiz" ]
         , case model.questions of
             [] ->
                 viewQuizEnd (List.length model.failedQuestions)
@@ -109,17 +110,58 @@ view model =
         ]
 
 
+viewProgress : Model -> Html msg
+viewProgress model =
+    let
+        total =
+            List.length initQuestions
+
+        completed =
+            total - List.length model.questions
+    in
+    H.label []
+        [ H.p []
+            [ H.text
+                ("Completed "
+                    ++ String.fromInt completed
+                    ++ " out of "
+                    ++ String.fromInt total
+                )
+            ]
+        , H.progress
+            [ HA.max (String.fromInt total)
+            , HA.value (String.fromInt completed)
+            ]
+            []
+        ]
+
+
 viewQuizEnd : Int -> Html Msg
 viewQuizEnd failedQuestionsCount =
     H.div []
         [ H.div [] [ H.text "You've finished all the questions!" ]
         , H.div []
             [ if failedQuestionsCount > 0 then
-                H.button [ HE.onClick RetryFailedQuestions ]
-                    [ H.text "Retry failed questions" ]
+                H.div []
+                    [ H.div []
+                        [ H.text
+                            ("You failed "
+                                ++ String.fromInt failedQuestionsCount
+                                ++ (if failedQuestionsCount == 1 then
+                                        " question."
+
+                                    else
+                                        " questions."
+                                   )
+                            )
+                        ]
+                    , H.button
+                        [ HE.onClick RetryFailedQuestions ]
+                        [ H.text "Retry failed questions" ]
+                    ]
 
               else
-                H.text ""
+                H.text "Congratulations! No failed questions!"
             ]
         ]
 
