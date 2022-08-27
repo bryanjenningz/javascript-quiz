@@ -48,7 +48,7 @@ initQuestions =
       }
     , { question = "What is passed in as the \"this\" argument?"
       , code = "f(a)"
-      , answer = "window in browsers, global in node.js, undefined in strict mode"
+      , answer = "window in browsers, global in node.js, or undefined in strict mode"
       }
     , { question = "What is passed in as the \"this\" argument?"
       , code = "f.call(a, b, c)"
