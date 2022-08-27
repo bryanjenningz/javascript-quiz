@@ -4,12 +4,16 @@ import Browser as B
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Html.Events as HE
+import Task
+import Time
 
 
 type alias Model =
     { questions : List Question
     , answerShown : Bool
     , failedQuestions : List Question
+    , startTime : Maybe Int
+    , nowTime : Maybe Int
     }
 
 
@@ -22,7 +26,14 @@ type alias Question =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( { questions = initQuestions, answerShown = False, failedQuestions = [] }, Cmd.none )
+    ( { questions = initQuestions
+      , answerShown = False
+      , failedQuestions = []
+      , startTime = Nothing
+      , nowTime = Nothing
+      }
+    , Task.perform (Time.posixToMillis >> SetStartTime) Time.now
+    )
 
 
 initQuestions : List Question
@@ -63,6 +74,8 @@ type Msg
     | PassQuestion
     | FailQuestion
     | RetryFailedQuestions
+    | SetStartTime Int
+    | SetNowTime Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -94,12 +107,19 @@ update msg model =
             , Cmd.none
             )
 
+        SetStartTime time ->
+            ( { model | startTime = Just time }, Cmd.none )
+
+        SetNowTime time ->
+            ( { model | nowTime = Just time }, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
     H.div
         []
         [ H.h1 [] [ H.text "JavaScript Quiz" ]
+        , viewTime model
         , viewProgress model
         , case model.questions of
             [] ->
@@ -108,6 +128,31 @@ view model =
             question :: _ ->
                 viewQuestion model.answerShown question
         ]
+
+
+viewTime : Model -> Html msg
+viewTime { startTime, nowTime } =
+    case ( startTime, nowTime ) of
+        ( Just start, Just now ) ->
+            let
+                totalSeconds =
+                    (now - start) // 1000
+
+                seconds =
+                    totalSeconds |> modBy 60
+
+                minutes =
+                    totalSeconds // 60
+
+                formattedTime =
+                    String.padLeft 2 '0' (String.fromInt minutes)
+                        ++ ":"
+                        ++ String.padLeft 2 '0' (String.fromInt seconds)
+            in
+            H.div [] [ H.text formattedTime ]
+
+        _ ->
+            H.div [] [ H.text "00:00" ]
 
 
 viewProgress : Model -> Html msg
@@ -194,9 +239,18 @@ viewQuestion answerShown { question, code, answer } =
         ]
 
 
+timeInterval : Float
+timeInterval =
+    1000
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    if List.isEmpty model.questions then
+        Sub.none
+
+    else
+        Time.every timeInterval (Time.posixToMillis >> SetNowTime)
 
 
 main : Program () Model Msg
