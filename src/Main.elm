@@ -9,6 +9,7 @@ import Html.Events as HE
 type alias Model =
     { questions : List Question
     , answerShown : Bool
+    , failedQuestions : List Question
     }
 
 
@@ -21,7 +22,7 @@ type alias Question =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( { questions = initQuestions, answerShown = False }, Cmd.none )
+    ( { questions = initQuestions, answerShown = False, failedQuestions = [] }, Cmd.none )
 
 
 initQuestions : List Question
@@ -59,8 +60,9 @@ initQuestions =
 
 type Msg
     = ShowAnswer
-    | GoToNextQuestion
-    | RetryQuiz
+    | PassQuestion
+    | FailQuestion
+    | RetryFailedQuestions
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -69,32 +71,64 @@ update msg model =
         ShowAnswer ->
             ( { model | answerShown = True }, Cmd.none )
 
-        GoToNextQuestion ->
-            ( { model | questions = List.drop 1 model.questions, answerShown = False }, Cmd.none )
+        PassQuestion ->
+            ( { model | questions = List.drop 1 model.questions, answerShown = False }
+            , Cmd.none
+            )
 
-        RetryQuiz ->
-            ( { model | questions = initQuestions, answerShown = False }, Cmd.none )
+        FailQuestion ->
+            ( { model
+                | questions = List.drop 1 model.questions
+                , answerShown = False
+                , failedQuestions = model.failedQuestions ++ List.take 1 model.questions
+              }
+            , Cmd.none
+            )
+
+        RetryFailedQuestions ->
+            ( { model
+                | questions = model.failedQuestions
+                , answerShown = False
+                , failedQuestions = []
+              }
+            , Cmd.none
+            )
 
 
 view : Model -> Html Msg
 view model =
-    case model.questions of
-        [] ->
-            H.div []
-                [ H.div [] [ H.text "You've finished all the questions!" ]
-                , H.div [] [ H.button [ HE.onClick RetryQuiz ] [ H.text "Retry" ] ]
-                ]
+    H.div
+        []
+        [ H.h1 [] [ H.text "JavaScript Quiz" ]
+        , case model.questions of
+            [] ->
+                viewQuizEnd (List.length model.failedQuestions)
 
-        question :: _ ->
-            viewQuestion model.answerShown question
+            question :: _ ->
+                viewQuestion model.answerShown question
+        ]
+
+
+viewQuizEnd : Int -> Html Msg
+viewQuizEnd failedQuestionsCount =
+    H.div []
+        [ H.div [] [ H.text "You've finished all the questions!" ]
+        , H.div []
+            [ if failedQuestionsCount > 0 then
+                H.button [ HE.onClick RetryFailedQuestions ]
+                    [ H.text "Retry failed questions" ]
+
+              else
+                H.text ""
+            ]
+        ]
 
 
 viewQuestion : Bool -> Question -> Html Msg
 viewQuestion answerShown { question, code, answer } =
     H.div []
-        [ H.div [] [ H.text question ]
+        [ H.h2 [] [ H.text question ]
         , H.pre [] [ H.text code ]
-        , H.div [] [ H.textarea [ HA.placeholder "Type answer" ] [] ]
         , H.div
             [ HA.style "visibility"
                 (if answerShown then
@@ -104,11 +138,14 @@ viewQuestion answerShown { question, code, answer } =
                     "hidden"
                 )
             ]
-            [ H.div [] [ H.text "Answer:" ]
+            [ H.h2 [] [ H.text "Answer:" ]
             , H.pre [] [ H.text answer ]
             ]
         , if answerShown then
-            H.button [ HE.onClick GoToNextQuestion ] [ H.text "Next question" ]
+            H.span []
+                [ H.button [ HE.onClick FailQuestion ] [ H.text "Fail" ]
+                , H.button [ HE.onClick PassQuestion ] [ H.text "Pass" ]
+                ]
 
           else
             H.button [ HE.onClick ShowAnswer ] [ H.text "Show answer" ]
