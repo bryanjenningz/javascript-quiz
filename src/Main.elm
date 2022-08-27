@@ -99,8 +99,8 @@ view : Model -> Html Msg
 view model =
     H.div
         []
-        [ viewProgress model
-        , H.h1 [] [ H.text "JavaScript Quiz" ]
+        [ H.h1 [] [ H.text "JavaScript Quiz" ]
+        , viewProgress model
         , case model.questions of
             [] ->
                 viewQuizEnd (List.length model.failedQuestions)
