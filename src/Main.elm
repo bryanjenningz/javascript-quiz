@@ -32,7 +32,7 @@ init () =
       , startTime = Nothing
       , nowTime = Nothing
       }
-    , Task.perform (Time.posixToMillis >> SetStartTime) Time.now
+    , setStartAndNowTime
     )
 
 
@@ -69,12 +69,17 @@ initQuestions =
     ]
 
 
+setStartAndNowTime : Cmd Msg
+setStartAndNowTime =
+    Task.perform (Time.posixToMillis >> SetStartAndNowTime) Time.now
+
+
 type Msg
     = ShowAnswer
     | PassQuestion
     | FailQuestion
     | RetryFailedQuestions
-    | SetStartTime Int
+    | SetStartAndNowTime Int
     | SetNowTime Int
 
 
@@ -104,11 +109,11 @@ update msg model =
                 , answerShown = False
                 , failedQuestions = []
               }
-            , Cmd.none
+            , setStartAndNowTime
             )
 
-        SetStartTime time ->
-            ( { model | startTime = Just time }, Cmd.none )
+        SetStartAndNowTime time ->
+            ( { model | startTime = Just time, nowTime = Just time }, Cmd.none )
 
         SetNowTime time ->
             ( { model | nowTime = Just time }, Cmd.none )
@@ -123,7 +128,7 @@ view model =
         , viewProgress model
         , case model.questions of
             [] ->
-                viewQuizEnd (List.length model.failedQuestions)
+                viewQuizEnd model.failedQuestions
 
             question :: _ ->
                 viewQuestion model.answerShown question
@@ -181,18 +186,18 @@ viewProgress model =
         ]
 
 
-viewQuizEnd : Int -> Html Msg
-viewQuizEnd failedQuestionsCount =
+viewQuizEnd : List Question -> Html Msg
+viewQuizEnd failedQuestions =
     H.div []
         [ H.div [] [ H.text "You've finished all the questions!" ]
         , H.div []
-            [ if failedQuestionsCount > 0 then
+            [ if List.length failedQuestions > 0 then
                 H.div []
                     [ H.div []
                         [ H.text
                             ("You failed "
-                                ++ String.fromInt failedQuestionsCount
-                                ++ (if failedQuestionsCount == 1 then
+                                ++ String.fromInt (List.length failedQuestions)
+                                ++ (if List.length failedQuestions == 1 then
                                         " question."
 
                                     else
@@ -203,6 +208,7 @@ viewQuizEnd failedQuestionsCount =
                     , H.button
                         [ HE.onClick RetryFailedQuestions ]
                         [ H.text "Retry failed questions" ]
+                    , viewFailedQuestions failedQuestions
                     ]
 
               else
@@ -236,6 +242,32 @@ viewQuestion answerShown { question, code, answer } =
 
           else
             H.button [ HE.onClick ShowAnswer ] [ H.text "Show answer" ]
+        ]
+
+
+viewFailedQuestions : List Question -> Html Msg
+viewFailedQuestions questions =
+    case questions of
+        [] ->
+            H.text ""
+
+        _ ->
+            H.div []
+                [ H.h2 [] [ H.text "Failed questions" ]
+                , H.div [] (List.map viewFailedQuestion questions)
+                ]
+
+
+viewFailedQuestion : Question -> Html Msg
+viewFailedQuestion { question, code, answer } =
+    H.div
+        [ HA.style "margin" "10px auto"
+        , HA.style "padding" "10px"
+        , HA.style "background-color" "#000"
+        ]
+        [ H.div [] [ H.text question ]
+        , H.div [] [ H.text code ]
+        , H.div [] [ H.text ("Answer: " ++ answer) ]
         ]
 
 
