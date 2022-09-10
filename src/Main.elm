@@ -320,7 +320,6 @@ viewQuizEnd failedQuestions =
                 H.div []
                     [ H.div [ HA.style "margin" "10px 0" ]
                         [ H.text "Congratulations! No failed questions!" ]
-                    , H.button [ HE.onClick EndQuiz ] [ H.text "Go back" ]
                     ]
 
             failedQuestionCount ->
@@ -342,7 +341,18 @@ viewQuizEnd failedQuestions =
                         [ H.text "Retry failed questions" ]
                     , viewFailedQuestions failedQuestions
                     ]
+        , endQuizButton
         ]
+
+
+endQuizButton : Html QuizMsg
+endQuizButton =
+    H.button
+        [ HA.style "display" "block"
+        , HA.style "margin" "10px auto"
+        , HE.onClick EndQuiz
+        ]
+        [ H.text "Go back" ]
 
 
 viewQuestion : Bool -> Question -> Html QuizMsg
