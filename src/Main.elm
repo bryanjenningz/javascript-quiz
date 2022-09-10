@@ -173,28 +173,28 @@ type QuizMsg
 
 
 updateQuiz : QuizMsg -> Quiz -> ( Quiz, Cmd QuizMsg )
-updateQuiz msg model =
+updateQuiz msg quiz =
     case msg of
         ShowAnswer ->
-            ( { model | answerShown = True }, Cmd.none )
+            ( { quiz | answerShown = True }, Cmd.none )
 
         PassQuestion ->
-            ( { model | questions = List.drop 1 model.questions, answerShown = False }
+            ( { quiz | questions = List.drop 1 quiz.questions, answerShown = False }
             , Cmd.none
             )
 
         FailQuestion ->
-            ( { model
-                | questions = List.drop 1 model.questions
+            ( { quiz
+                | questions = List.drop 1 quiz.questions
                 , answerShown = False
-                , failedQuestions = model.failedQuestions ++ List.take 1 model.questions
+                , failedQuestions = quiz.failedQuestions ++ List.take 1 quiz.questions
               }
             , Cmd.none
             )
 
         RetryFailedQuestions ->
-            ( { model
-                | questions = model.failedQuestions
+            ( { quiz
+                | questions = quiz.failedQuestions
                 , answerShown = False
                 , failedQuestions = []
               }
@@ -202,14 +202,14 @@ updateQuiz msg model =
             )
 
         SetStartAndNowTime time ->
-            ( { model | startTime = Just time, nowTime = Just time }, Cmd.none )
+            ( { quiz | startTime = Just time, nowTime = Just time }, Cmd.none )
 
         SetNowTime time ->
-            ( { model | nowTime = Just time }, Cmd.none )
+            ( { quiz | nowTime = Just time }, Cmd.none )
 
         EndQuiz ->
             -- Gets handled at above level
-            ( model, Cmd.none )
+            ( quiz, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -236,18 +236,18 @@ viewStartQuizButton quiz =
 
 
 viewQuiz : Quiz -> Html QuizMsg
-viewQuiz model =
+viewQuiz quiz =
     H.div
         []
-        [ H.h1 [] [ H.text model.title ]
-        , viewTime model
-        , viewProgress model
-        , case model.questions of
+        [ H.h1 [] [ H.text quiz.title ]
+        , viewTime quiz
+        , viewProgress quiz
+        , case quiz.questions of
             [] ->
-                viewQuizEnd model.failedQuestions
+                viewQuizEnd quiz.failedQuestions
 
             question :: _ ->
-                viewQuestion model.answerShown question
+                viewQuestion quiz.answerShown question
         ]
 
 
