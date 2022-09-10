@@ -95,10 +95,26 @@ promiseQuestions =
     [ { question = "What gets logged to the console?"
       , code = """new Promise(resolve => {
   console.log(1)
+  resolve()
 })
 .then(() => console.log(2))
 console.log(3)"""
       , answer = "1 3 2"
+      }
+    , { question = "What gets logged to the console?"
+      , code = """new Promise(resolve => {
+  console.log(1)
+  new Promise(resolve => {
+    console.log(2)
+    resolve()
+  })
+  .then(() => console.log(3))
+  resolve()
+  console.log(4)
+})
+.then(() => console.log(5))
+console.log(6)"""
+      , answer = "1 2 4 6 3 5"
       }
     ]
 
