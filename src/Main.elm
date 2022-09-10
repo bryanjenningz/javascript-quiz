@@ -93,6 +93,17 @@ thisQuestions =
 asyncQuestions : List Question
 asyncQuestions =
     [ { question = "What gets logged to the console?"
+      , code = """setTimeout(() => {
+  console.log(1)
+  setTimeout(() => {
+    console.log(2)
+  }, 100)
+  console.log(3)
+}, 100)
+console.log(4)"""
+      , answer = "4 1 3 2"
+      }
+    , { question = "What gets logged to the console?"
       , code = """new Promise(resolve => {
   console.log(1)
   resolve()
