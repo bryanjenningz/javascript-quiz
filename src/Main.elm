@@ -9,11 +9,19 @@ import Time
 
 
 type alias Model =
-    { questions : List Question
+    { currentQuiz : Maybe Quiz
+    , quizzes : List Quiz
+    }
+
+
+type alias Quiz =
+    { title : String
+    , questions : List Question
     , answerShown : Bool
     , failedQuestions : List Question
     , startTime : Maybe Int
     , nowTime : Maybe Int
+    , totalQuestions : Int
     }
 
 
@@ -26,18 +34,31 @@ type alias Question =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( { questions = initQuestions
-      , answerShown = False
-      , failedQuestions = []
-      , startTime = Nothing
-      , nowTime = Nothing
+    ( { currentQuiz = Nothing
+      , quizzes =
+            List.map initQuiz
+                [ ( "\"this\" quiz", thisQuestions )
+                , ( "Promise quiz", promiseQuestions )
+                ]
       }
-    , setStartAndNowTime
+    , Cmd.map QuizMsg setStartAndNowTime
     )
 
 
-initQuestions : List Question
-initQuestions =
+initQuiz : ( String, List Question ) -> Quiz
+initQuiz ( title, questions ) =
+    { title = title
+    , questions = questions
+    , answerShown = False
+    , failedQuestions = []
+    , startTime = Nothing
+    , nowTime = Nothing
+    , totalQuestions = List.length questions
+    }
+
+
+thisQuestions : List Question
+thisQuestions =
     [ { question = "What is passed in as the \"this\" argument?"
       , code = "a.f(b)"
       , answer = "a"
@@ -69,22 +90,74 @@ initQuestions =
     ]
 
 
-setStartAndNowTime : Cmd Msg
+promiseQuestions : List Question
+promiseQuestions =
+    [ { question = "What gets logged to the console?"
+      , code = """new Promise(resolve => {
+  console.log(1)
+})
+.then(() => console.log(2))
+console.log(3)"""
+      , answer = "1 3 2"
+      }
+    ]
+
+
+setStartAndNowTime : Cmd QuizMsg
 setStartAndNowTime =
     Task.perform (Time.posixToMillis >> SetStartAndNowTime) Time.now
 
 
 type Msg
+    = StartQuiz Quiz
+    | QuizMsg QuizMsg
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        StartQuiz startedQuiz ->
+            ( { model
+                | currentQuiz =
+                    model.quizzes
+                        |> List.filter (\quiz -> quiz.title == startedQuiz.title)
+                        |> List.head
+              }
+            , Cmd.map QuizMsg setStartAndNowTime
+            )
+
+        QuizMsg quizMsg ->
+            case model.currentQuiz of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just quiz ->
+                    case quizMsg of
+                        EndQuiz ->
+                            ( { model | currentQuiz = Nothing }, Cmd.none )
+
+                        _ ->
+                            let
+                                ( newQuiz, quizCmd ) =
+                                    updateQuiz quizMsg quiz
+                            in
+                            ( { model | currentQuiz = Just newQuiz }
+                            , Cmd.map QuizMsg quizCmd
+                            )
+
+
+type QuizMsg
     = ShowAnswer
     | PassQuestion
     | FailQuestion
     | RetryFailedQuestions
     | SetStartAndNowTime Int
     | SetNowTime Int
+    | EndQuiz
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+updateQuiz : QuizMsg -> Quiz -> ( Quiz, Cmd QuizMsg )
+updateQuiz msg model =
     case msg of
         ShowAnswer ->
             ( { model | answerShown = True }, Cmd.none )
@@ -118,12 +191,39 @@ update msg model =
         SetNowTime time ->
             ( { model | nowTime = Just time }, Cmd.none )
 
+        EndQuiz ->
+            -- Gets handled at above level
+            ( model, Cmd.none )
+
 
 view : Model -> Html Msg
 view model =
+    case model.currentQuiz of
+        Nothing ->
+            H.div []
+                [ H.h1 [] [ H.text "Choose a JavaScript quiz" ]
+                , H.div [] (List.map viewStartQuizButton model.quizzes)
+                ]
+
+        Just currentQuiz ->
+            H.map QuizMsg (viewQuiz currentQuiz)
+
+
+viewStartQuizButton : Quiz -> Html Msg
+viewStartQuizButton quiz =
+    H.button
+        [ HA.style "display" "block"
+        , HA.style "margin" "10px auto"
+        , HE.onClick (StartQuiz quiz)
+        ]
+        [ H.text quiz.title ]
+
+
+viewQuiz : Quiz -> Html QuizMsg
+viewQuiz model =
     H.div
         []
-        [ H.h1 [] [ H.text "JavaScript Quiz" ]
+        [ H.h1 [] [ H.text model.title ]
         , viewTime model
         , viewProgress model
         , case model.questions of
@@ -135,7 +235,7 @@ view model =
         ]
 
 
-viewTime : Model -> Html msg
+viewTime : { a | startTime : Maybe Int, nowTime : Maybe Int } -> Html msg
 viewTime { startTime, nowTime } =
     case ( startTime, nowTime ) of
         ( Just start, Just now ) ->
@@ -160,14 +260,11 @@ viewTime { startTime, nowTime } =
             H.div [] [ H.text "00:00" ]
 
 
-viewProgress : Model -> Html msg
-viewProgress model =
+viewProgress : Quiz -> Html msg
+viewProgress { questions, totalQuestions } =
     let
-        total =
-            List.length initQuestions
-
         completed =
-            total - List.length model.questions
+            totalQuestions - List.length questions
     in
     H.label []
         [ H.p []
@@ -175,25 +272,29 @@ viewProgress model =
                 ("Completed "
                     ++ String.fromInt completed
                     ++ " out of "
-                    ++ String.fromInt total
+                    ++ String.fromInt totalQuestions
                 )
             ]
         , H.progress
-            [ HA.max (String.fromInt total)
+            [ HA.max (String.fromInt totalQuestions)
             , HA.value (String.fromInt completed)
             ]
             []
         ]
 
 
-viewQuizEnd : List Question -> Html Msg
+viewQuizEnd : List Question -> Html QuizMsg
 viewQuizEnd failedQuestions =
     H.div []
         [ H.div [ HA.style "margin" "10px 0" ]
             [ H.text "You've finished all the questions!" ]
         , case List.length failedQuestions of
             0 ->
-                H.text "Congratulations! No failed questions!"
+                H.div []
+                    [ H.div [ HA.style "margin" "10px 0" ]
+                        [ H.text "Congratulations! No failed questions!" ]
+                    , H.button [ HE.onClick EndQuiz ] [ H.text "Go back" ]
+                    ]
 
             failedQuestionCount ->
                 H.div []
@@ -217,7 +318,7 @@ viewQuizEnd failedQuestions =
         ]
 
 
-viewQuestion : Bool -> Question -> Html Msg
+viewQuestion : Bool -> Question -> Html QuizMsg
 viewQuestion answerShown { question, code, answer } =
     H.div []
         [ H.h2 [] [ H.text question ]
@@ -245,7 +346,7 @@ viewQuestion answerShown { question, code, answer } =
         ]
 
 
-viewFailedQuestions : List Question -> Html Msg
+viewFailedQuestions : List Question -> Html msg
 viewFailedQuestions questions =
     case questions of
         [] ->
@@ -258,7 +359,7 @@ viewFailedQuestions questions =
                 ]
 
 
-viewFailedQuestion : Question -> Html Msg
+viewFailedQuestion : Question -> Html msg
 viewFailedQuestion { question, code, answer } =
     H.div
         [ HA.style "margin" "10px auto"
@@ -266,7 +367,7 @@ viewFailedQuestion { question, code, answer } =
         , HA.style "background-color" "#000"
         ]
         [ H.div [] [ H.text question ]
-        , H.div [] [ H.text code ]
+        , H.pre [] [ H.text code ]
         , H.div [] [ H.text ("Answer: " ++ answer) ]
         ]
 
@@ -278,11 +379,17 @@ timeInterval =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if List.isEmpty model.questions then
-        Sub.none
+    case model.currentQuiz of
+        Nothing ->
+            Sub.none
 
-    else
-        Time.every timeInterval (Time.posixToMillis >> SetNowTime)
+        Just currentQuiz ->
+            if List.isEmpty currentQuiz.questions then
+                Sub.none
+
+            else
+                Time.every timeInterval
+                    (QuizMsg << SetNowTime << Time.posixToMillis)
 
 
 main : Program () Model Msg
