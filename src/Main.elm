@@ -189,15 +189,19 @@ viewProgress model =
 viewQuizEnd : List Question -> Html Msg
 viewQuizEnd failedQuestions =
     H.div []
-        [ H.div [] [ H.text "You've finished all the questions!" ]
-        , H.div []
-            [ if List.length failedQuestions > 0 then
+        [ H.div [ HA.style "margin" "10px 0" ]
+            [ H.text "You've finished all the questions!" ]
+        , case List.length failedQuestions of
+            0 ->
+                H.text "Congratulations! No failed questions!"
+
+            failedQuestionCount ->
                 H.div []
-                    [ H.div []
+                    [ H.div [ HA.style "margin" "10px 0" ]
                         [ H.text
                             ("You failed "
-                                ++ String.fromInt (List.length failedQuestions)
-                                ++ (if List.length failedQuestions == 1 then
+                                ++ String.fromInt failedQuestionCount
+                                ++ (if failedQuestionCount == 1 then
                                         " question."
 
                                     else
@@ -210,10 +214,6 @@ viewQuizEnd failedQuestions =
                         [ H.text "Retry failed questions" ]
                     , viewFailedQuestions failedQuestions
                     ]
-
-              else
-                H.text "Congratulations! No failed questions!"
-            ]
         ]
 
 
