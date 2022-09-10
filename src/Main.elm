@@ -37,8 +37,8 @@ init () =
     ( { currentQuiz = Nothing
       , quizzes =
             List.map initQuiz
-                [ ( "\"this\" quiz", thisQuestions )
-                , ( "Promise quiz", promiseQuestions )
+                [ ( "Async Quiz", asyncQuestions )
+                , ( "\"this\" Quiz", thisQuestions )
                 ]
       }
     , Cmd.map QuizMsg setStartAndNowTime
@@ -90,8 +90,8 @@ thisQuestions =
     ]
 
 
-promiseQuestions : List Question
-promiseQuestions =
+asyncQuestions : List Question
+asyncQuestions =
     [ { question = "What gets logged to the console?"
       , code = """new Promise(resolve => {
   console.log(1)
